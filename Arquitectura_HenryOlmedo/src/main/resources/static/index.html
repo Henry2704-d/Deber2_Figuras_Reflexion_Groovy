@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Figuras dinámicas · Henry Olmedo</title>
+<style>
+body{font:16px system-ui,sans-serif;background:#eff3f8;color:#172b45;max-width:1000px;margin:auto;padding:30px}h1{margin-bottom:8px}h2{font-size:20px}section{background:white;padding:24px;border-radius:14px;margin:20px 0;box-shadow:0 3px 16px #172b4510}label{display:block;margin:12px 0 5px}input,select,textarea,button{box-sizing:border-box;font:inherit;padding:10px;border:1px solid #bac7d8;border-radius:7px;width:100%}textarea{font:14px monospace}button{background:#234e87;color:white;border:0;cursor:pointer;margin-top:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#172b45;color:#e9f2ff;padding:18px;border-radius:10px}small{color:#4e6078}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}@media(max-width:650px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<small>DISEÑO Y ARQUITECTURA DE SOFTWARE · HENRY OLMEDO</small>
+<h1>Figuras en tiempo de ejecución</h1><p>Reflexión en Java, extensiones Groovy y catálogo externo.</p>
+<div class="grid"><section><h2>1. Calcular una figura</h2>
+<label for="clase">Clase registrada</label><select id="clase"></select>
+<label for="parametros">Parámetros en JSON</label><textarea id="parametros" rows="6">{"radio":5}</textarea>
+<button id="calcular">Calcular área y perímetro</button>
+</section><section><h2>2. Obtener una figura externa</h2>
+<p>Inicia el catálogo en el puerto 8081. La aplicación descarga el archivo Groovy mediante HTTP.</p>
+<label for="externa">Nombre de la clase</label><input id="externa" value="Pentagono">
+<button id="importar">Descargar y registrar</button><small>Ejemplos disponibles: Pentagono y Hexagono.</small>
+</section></div>
+<section><h2>3. Compilar código Groovy</h2><p>La clase debe extender Figura y tener un constructor que reciba Map. Carga únicamente código de confianza; se ejecuta con los permisos de la aplicación.</p>
+<label for="codigo">Código fuente</label><textarea id="codigo" rows="14">import com.example.arquitectura_henryolmedo.Figura
+class Rectangulo extends Figura {
+    double base, altura
+    Rectangulo(Map p) {
+        if (p.keySet() != ['base','altura'] as Set)
+            throw new IllegalArgumentException('Se requieren base y altura')
+        base = p.base
+        altura = p.altura
+    }
+    double calcularArea() { base * altura }
+    double calcularPerimetro() { 2 * (base + altura) }
+}</textarea><button id="compilar">Compilar y registrar</button></section>
+<section><h2>Resultado</h2><pre id="resultado" role="status" aria-live="polite">Selecciona una operación.</pre></section>
+<script>
+const $=id=>document.getElementById(id);
+const ejemplos={Circulo:{radio:5},Cuadrado:{lado:4},Triangulo:{base:3,altura:4,lado1:3,lado2:4,lado3:5},Pentagono:{lado:5},Hexagono:{lado:5},Rectangulo:{base:6,altura:3}};
+async function api(ruta,body){const r=await fetch('/api/figuras'+ruta,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||d.detail||'Solicitud inválida');return d;}
+async function listar(seleccion){const lista=await api('');$('clase').replaceChildren(...lista.map(n=>new Option(n,n)));if(seleccion)$('clase').value=seleccion;actualizar();}
+function actualizar(){const e=ejemplos[$('clase').value];$('parametros').value=JSON.stringify(e||{},null,2);}
+async function ejecutar(fn){try{$('resultado').textContent='Procesando…';$('resultado').textContent=JSON.stringify(await fn(),null,2);}catch(e){$('resultado').textContent='Error: '+e.message;}}
+$('clase').onchange=actualizar;
+$('calcular').onclick=()=>ejecutar(()=>api('/calcular',{clase:$('clase').value,parametros:JSON.parse($('parametros').value)}));
+$('importar').onclick=()=>ejecutar(async()=>{const r=await api('/externas/'+encodeURIComponent($('externa').value.trim()),{});await listar(r.registrada);return r;});
+$('compilar').onclick=()=>ejecutar(async()=>{const r=await api('/groovy',{codigo:$('codigo').value});await listar(r.registrada);return r;});
+listar('Circulo').catch(e=>$('resultado').textContent=e.message);
+</script></body></html>
